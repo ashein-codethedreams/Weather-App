@@ -10,7 +10,7 @@ const CurrentWeather = () => {
   const [message, setMessage] = useState("");
 
   const handleOnChange = (event) => {
-    setCity(event.target.value);
+    setCity(event.target.value.trim());
   };
 
   const getCurrentWeather = async () => {
@@ -45,6 +45,7 @@ const CurrentWeather = () => {
     <div className="flex flex-col justify-center items-center">
       <div className="flex w-[350px] ">
         <Input
+          className="h-12 md:h-auto"
           allowClear
           placeholder="Enter City"
           onChange={handleOnChange}
@@ -52,7 +53,7 @@ const CurrentWeather = () => {
         />
         <Button
           style={{ borderRadius: "1px" }}
-          className="bg-blue-600 text-white"
+          className="h-12 md:h-auto bg-blue-600 text-white"
           onClick={handleOnSearch}
         >
           Search
@@ -63,7 +64,7 @@ const CurrentWeather = () => {
         <p>Searching weather for {city} ...</p>
       ) : (
         <>
-          {result ? (
+          {result && result.weather[0].icon ? (
             <div>
               <img
                 src={`https://openweathermap.org/img/wn/${result.weather[0].icon}@2x.png`}
