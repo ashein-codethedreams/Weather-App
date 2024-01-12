@@ -23,7 +23,6 @@ const CurrentWeather = () => {
       // Check if the response status is OK (200)
       if (!response.ok) {
         throw new Error("City not found");
-        setIsLoading(false);
       }
       const responseData = await response.json();
       setResult(responseData);
@@ -41,15 +40,21 @@ const CurrentWeather = () => {
     getCurrentWeather();
   };
 
+  const handleKeyPress = (event) => {
+    if (event.key === "Enter") {
+      handleOnSearch();
+    }
+  };
+
   return (
     <div className="flex flex-col justify-center items-center">
       <div className="flex w-[350px] ">
         <Input
           className="h-12 md:h-auto"
-          allowClear
           placeholder="Enter City"
           onChange={handleOnChange}
           style={{ borderRadius: "1px" }}
+          onPressEnter={handleKeyPress}
         />
         <Button
           style={{ borderRadius: "1px" }}
@@ -64,7 +69,7 @@ const CurrentWeather = () => {
         <p>Searching weather for {city} ...</p>
       ) : (
         <>
-          {result && result.weather[0].icon ? (
+          {result ? (
             <div>
               <img
                 src={`https://openweathermap.org/img/wn/${result.weather[0].icon}@2x.png`}
