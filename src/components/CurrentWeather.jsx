@@ -17,7 +17,7 @@ const CurrentWeather = () => {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${api_key}`
+        `http://localhost:8080/weather?city=${city}&apiKey=${api_key}`
       );
 
       // Check if the response status is OK (200)
