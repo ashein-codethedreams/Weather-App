@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "./CurrentWeather.css";
 import InstallPrompt from "./InstallPrompt";
 
@@ -202,6 +202,35 @@ const readJson = async (response, serviceName) => {
   return response.json();
 };
 
+const locationFromUrl = () => {
+  const params = new URLSearchParams(window.location.search);
+  const latitude = Number(params.get("lat"));
+  const longitude = Number(params.get("lon"));
+  const name = params.get("name")?.trim();
+
+  if (
+    params.has("lat") &&
+    params.has("lon") &&
+    Number.isFinite(latitude) &&
+    latitude >= -90 &&
+    latitude <= 90 &&
+    Number.isFinite(longitude) &&
+    longitude >= -180 &&
+    longitude <= 180 &&
+    name
+  ) {
+    return {
+      latitude,
+      longitude,
+      name,
+      country_code: params.get("country") || undefined,
+    };
+  }
+
+  const city = params.get("city")?.trim();
+  return city ? { city } : null;
+};
+
 const CurrentWeather = () => {
   const [city, setCity] = useState("");
   const [result, setResult] = useState(null);
@@ -211,97 +240,138 @@ const CurrentWeather = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  const searchWeather = async (searchParams) => {
-    setIsLoading(true);
-    setMessage("");
-    setResult(null);
+  const searchWeather = useCallback(
+    async (searchParams, { updateUrl = true } = {}) => {
+      setIsLoading(true);
+      setMessage("");
+      setResult(null);
 
-    try {
-      let location;
-      if (searchParams.city) {
-        const geocodingParams = new URLSearchParams({
-          name: searchParams.city,
-          count: "1",
-          language: "en",
-          format: "json",
-        });
-        const geocodingResponse = await fetch(
-          `https://geocoding-api.open-meteo.com/v1/search?${geocodingParams}`
-        );
-        const places = await readJson(geocodingResponse, "Place search");
-        location = places.results?.[0];
-        if (!location) {
-          setMessage("We couldn't find that place. Check the spelling and try again.");
-          return;
+      try {
+        let location;
+        if (searchParams.city) {
+          const geocodingParams = new URLSearchParams({
+            name: searchParams.city,
+            count: "1",
+            language: "en",
+            format: "json",
+          });
+          const geocodingResponse = await fetch(
+            `https://geocoding-api.open-meteo.com/v1/search?${geocodingParams}`
+          );
+          const places = await readJson(geocodingResponse, "Place search");
+          location = places.results?.[0];
+          if (!location) {
+            setMessage("We couldn't find that place. Check the spelling and try again.");
+            return;
+          }
+        } else {
+          location = {
+            name: searchParams.name || "Your location",
+            country_code: searchParams.country_code,
+            latitude: searchParams.latitude,
+            longitude: searchParams.longitude,
+          };
         }
-      } else {
-        location = {
-          name: "Your location",
-          latitude: searchParams.latitude,
-          longitude: searchParams.longitude,
-        };
-      }
 
-      const forecastParams = new URLSearchParams({
-        latitude: String(location.latitude),
-        longitude: String(location.longitude),
-        current:
-          "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,surface_pressure,visibility,uv_index",
-        hourly:
-          "temperature_2m,precipitation_probability,weather_code,is_day",
-        daily:
-          "sunrise,sunset,weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
-        timezone: "auto",
-        wind_speed_unit: "ms",
-        forecast_days: "7",
-      });
-      const airQualityParams = new URLSearchParams({
-        latitude: String(location.latitude),
-        longitude: String(location.longitude),
-        current: "us_aqi",
-        timezone: "auto",
-      });
-      const [forecastResponse, airQualityResult] = await Promise.all([
-        fetch(`https://api.open-meteo.com/v1/forecast?${forecastParams}`),
-        fetch(
-          `https://air-quality-api.open-meteo.com/v1/air-quality?${airQualityParams}`
-        )
-          .then((response) => readJson(response, "Air quality service"))
-          .then((data) => ({ data }))
-          .catch((error) => ({ error })),
-      ]);
-      const forecast = await readJson(forecastResponse, "Weather service");
-      const weather = normalizeWeather(location, forecast);
-      const aqi = airQualityResult.data?.current?.us_aqi;
-      weather.airQuality =
-        Number.isFinite(aqi) ? airQualityInfo(aqi) : null;
-      weather.airQualityError = airQualityResult.error
-        ? airQualityResult.error instanceof TypeError
-          ? "Unable to connect to the air quality service."
-          : `${airQualityResult.error.message}`
-        : null;
-      const uvIndex = weather.main.uvIndex;
-      weather.uvIndex = Number.isFinite(uvIndex)
-        ? { value: uvIndex, ...uvIndexInfo(uvIndex) }
-        : null;
-      setResult(weather);
-      setCity(weather.name);
-      setRecentCities((cities) =>
-        [weather.name, ...cities.filter((name) => name !== weather.name)].slice(
-          0,
-          5
-        )
-      );
-    } catch (error) {
-      setMessage(
-        error instanceof TypeError
-          ? "Unable to connect to the weather service. Check your internet and try again."
-          : `${error.message} Please try again in a moment.`
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        const forecastParams = new URLSearchParams({
+          latitude: String(location.latitude),
+          longitude: String(location.longitude),
+          current:
+            "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,surface_pressure,visibility,uv_index",
+          hourly:
+            "temperature_2m,precipitation_probability,weather_code,is_day",
+          daily:
+            "sunrise,sunset,weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+          timezone: "auto",
+          wind_speed_unit: "ms",
+          forecast_days: "7",
+        });
+        const airQualityParams = new URLSearchParams({
+          latitude: String(location.latitude),
+          longitude: String(location.longitude),
+          current: "us_aqi",
+          timezone: "auto",
+        });
+        const [forecastResponse, airQualityResult] = await Promise.all([
+          fetch(`https://api.open-meteo.com/v1/forecast?${forecastParams}`),
+          fetch(
+            `https://air-quality-api.open-meteo.com/v1/air-quality?${airQualityParams}`
+          )
+            .then((response) => readJson(response, "Air quality service"))
+            .then((data) => ({ data }))
+            .catch((error) => ({ error })),
+        ]);
+        const forecast = await readJson(forecastResponse, "Weather service");
+        const weather = normalizeWeather(location, forecast);
+        const aqi = airQualityResult.data?.current?.us_aqi;
+        weather.airQuality =
+          Number.isFinite(aqi) ? airQualityInfo(aqi) : null;
+        weather.airQualityError = airQualityResult.error
+          ? airQualityResult.error instanceof TypeError
+            ? "Unable to connect to the air quality service."
+            : `${airQualityResult.error.message}`
+          : null;
+        const uvIndex = weather.main.uvIndex;
+        weather.uvIndex = Number.isFinite(uvIndex)
+          ? { value: uvIndex, ...uvIndexInfo(uvIndex) }
+          : null;
+        setResult(weather);
+        setCity(weather.name);
+        setRecentCities((cities) =>
+          [weather.name, ...cities.filter((name) => name !== weather.name)].slice(
+            0,
+            5
+          )
+        );
+        if (updateUrl) {
+          const params = new URLSearchParams({
+            lat: String(location.latitude),
+            lon: String(location.longitude),
+            name: location.name,
+          });
+          if (location.country_code) {
+            params.set("country", location.country_code);
+          }
+          const shareUrl = new URL(window.location.href);
+          shareUrl.search = params.toString();
+          if (shareUrl.href !== window.location.href) {
+            window.history.pushState({ location: location.name }, "", shareUrl);
+          }
+        }
+      } catch (error) {
+        setMessage(
+          error instanceof TypeError
+            ? "Unable to connect to the weather service. Check your internet and try again."
+            : `${error.message} Please try again in a moment.`
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    const loadLocationFromUrl = () => {
+      const location = locationFromUrl();
+      if (location) {
+        if (location.city) {
+          setCity(location.city);
+        } else {
+          setCity(location.name);
+        }
+        searchWeather(location, { updateUrl: Boolean(location.city) });
+      } else {
+        setResult(null);
+        setCity("");
+        setMessage("");
+      }
+    };
+
+    loadLocationFromUrl();
+    window.addEventListener("popstate", loadLocationFromUrl);
+    return () => window.removeEventListener("popstate", loadLocationFromUrl);
+  }, [searchWeather]);
 
   const handleSearch = (event) => {
     event.preventDefault();

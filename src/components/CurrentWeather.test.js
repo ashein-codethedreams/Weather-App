@@ -93,6 +93,7 @@ beforeEach(() => {
 
 afterEach(() => {
   global.fetch = originalFetch;
+  window.history.replaceState({}, "", "/");
   if (originalGeolocation) {
     Object.defineProperty(navigator, "geolocation", originalGeolocation);
   } else {
@@ -123,6 +124,9 @@ test("looks up a city and renders its current conditions", async () => {
   const geocodingUrl = new URL(geocodingCall[0]);
   expect(geocodingUrl.origin).toBe("https://geocoding-api.open-meteo.com");
   expect(geocodingUrl.searchParams.get("name")).toBe("Yangon");
+  expect(new URLSearchParams(window.location.search).get("lat")).toBe("16.8");
+  expect(new URLSearchParams(window.location.search).get("lon")).toBe("96.15");
+  expect(new URLSearchParams(window.location.search).get("name")).toBe("Yangon");
   const forecastUrl = new URL(forecastCall[0]);
   expect(forecastUrl.origin).toBe("https://api.open-meteo.com");
   expect(forecastUrl.pathname).toBe("/v1/forecast");
@@ -202,6 +206,31 @@ test("looks up a city and renders its current conditions", async () => {
   dailyForecast = screen.getByRole("tabpanel", { name: "7 days" });
   expect(dailyForecast.querySelector(".daily-item")).toHaveTextContent("86°");
   expect(dailyForecast.querySelector(".daily-item")).toHaveTextContent("68°");
+});
+
+test("loads the selected coordinates from a shareable URL", async () => {
+  window.history.replaceState(
+    {},
+    "",
+    "/?lat=16.8&lon=96.15&name=Yangon&country=MM"
+  );
+
+  await act(async () => {
+    render(<CurrentWeather />);
+  });
+
+  expect(global.fetch).toHaveBeenCalledTimes(2);
+  expect(
+    global.fetch.mock.calls.some(([url]) => url.includes("geocoding-api"))
+  ).toBe(false);
+  const forecastUrl = new URL(
+    global.fetch.mock.calls.find(([url]) => url.includes("/v1/forecast"))[0]
+  );
+  expect(forecastUrl.searchParams.get("latitude")).toBe("16.8");
+  expect(forecastUrl.searchParams.get("longitude")).toBe("96.15");
+  expect(
+    screen.getByRole("region", { name: "Weather in Yangon" })
+  ).toBeInTheDocument();
 });
 
 test("shows a useful message when city search returns no matches", async () => {
