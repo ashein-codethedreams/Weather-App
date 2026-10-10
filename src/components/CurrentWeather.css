@@ -233,84 +233,113 @@
   animation: rise-in 360ms ease both;
 }
 
-.hourly-section {
+.forecast-section {
   min-width: 0;
   margin-top: 15px;
-  padding: 22px 23px 20px;
+  padding: 17px 19px 14px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 12px;
   background: var(--surface);
-  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.1);
   animation: rise-in 360ms ease both;
 }
 
-.hourly-heading {
+.forecast-header {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 18px;
+  gap: 16px;
+  margin-bottom: 12px;
 }
 
-.hourly-heading h2 {
-  margin: 7px 0 0;
+.forecast-header h2 {
+  margin: 0;
   color: #edf4f5;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 580;
   letter-spacing: -0.4px;
 }
 
-.hourly-heading > span {
-  padding-bottom: 2px;
-  color: var(--muted);
-  font-size: 10px;
+.forecast-tabs {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid rgba(214, 229, 238, 0.08);
+  border-radius: 8px;
+  background: rgba(4, 15, 22, 0.22);
 }
 
-.hourly-scroll {
+.forecast-tabs button {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+}
+
+.forecast-tabs button.active {
+  background: rgba(131, 216, 188, 0.12);
+  color: #b9eed9;
+}
+
+.forecast-tabs button:focus-visible,
+.forecast-panel:focus-visible {
+  outline: 2px solid #8bdec1;
+  outline-offset: 3px;
+}
+
+.forecast-panel {
+  min-width: 0;
+}
+
+.forecast-scroll {
+  width: 100%;
+  min-width: 0;
+  height: 118px;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
-  scrollbar-color: rgba(131, 216, 188, 0.35) rgba(4, 15, 22, 0.25);
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 
-.hourly-scroll:focus-visible {
+.forecast-scroll:focus-visible {
   outline: 2px solid #8bdec1;
-  outline-offset: 4px;
+  outline-offset: 3px;
 }
 
-.hourly-scroll::-webkit-scrollbar {
-  height: 5px;
-}
-
-.hourly-scroll::-webkit-scrollbar-track {
-  border-radius: 5px;
-  background: rgba(4, 15, 22, 0.25);
-}
-
-.hourly-scroll::-webkit-scrollbar-thumb {
-  border-radius: 5px;
-  background: rgba(131, 216, 188, 0.35);
-}
-
-.hourly-list {
+.forecast-strip {
   display: grid;
   width: max-content;
-  min-width: 100%;
-  grid-auto-columns: minmax(68px, 1fr);
   grid-auto-flow: column;
-  gap: 8px;
-  padding-bottom: 5px;
+  gap: 7px;
+  padding: 1px 1px 6px;
+}
+
+.forecast-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.hourly-strip {
+  grid-auto-columns: 61px;
+}
+
+.daily-strip {
+  width: 100%;
+  min-width: 560px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
 .hourly-item {
   display: flex;
-  min-height: 135px;
+  min-height: 111px;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 8px 10px;
+  padding: 9px 7px 8px;
   border: 1px solid rgba(214, 229, 238, 0.08);
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgba(4, 15, 22, 0.2);
 }
 
@@ -327,10 +356,10 @@
 
 .hourly-icon {
   display: grid;
-  min-height: 34px;
+  min-height: 28px;
   place-items: center;
   color: #d6e7e7;
-  font-size: 23px;
+  font-size: 20px;
 }
 
 .hourly-temperature {
@@ -342,6 +371,59 @@
 .hourly-rain {
   color: #8fc9e0;
   font-size: 9px;
+}
+
+.daily-item {
+  display: flex;
+  min-height: 111px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 7px 8px;
+  border: 1px solid rgba(214, 229, 238, 0.08);
+  border-radius: 8px;
+  background: rgba(4, 15, 22, 0.2);
+}
+
+.daily-item:first-child {
+  border-color: rgba(131, 216, 188, 0.27);
+  background: rgba(131, 216, 188, 0.06);
+}
+
+.daily-day {
+  color: #aebbc2;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.daily-icon {
+  display: grid;
+  min-height: 28px;
+  place-items: center;
+  color: #d6e7e7;
+  font-size: 20px;
+}
+
+.daily-rain {
+  color: #8fc9e0;
+  font-size: 9px;
+}
+
+.daily-temperatures {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.daily-temperatures strong {
+  color: #edf4f5;
+  font-weight: 650;
+}
+
+.daily-temperatures > span {
+  color: #81929d;
 }
 
 .current-card,

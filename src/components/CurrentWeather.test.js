@@ -35,6 +35,19 @@ const mockForecastResponse = {
       is_day: hourlyTimes.map(() => 1),
     },
     daily: {
+      time: [
+        "2026-10-10",
+        "2026-10-11",
+        "2026-10-12",
+        "2026-10-13",
+        "2026-10-14",
+        "2026-10-15",
+        "2026-10-16",
+      ],
+      weather_code: [0, 1, 2, 3, 61, 71, 95],
+      temperature_2m_max: [30, 31, 29, 28, 27, 26, 25],
+      temperature_2m_min: [20, 21, 19, 18, 17, 16, 15],
+      precipitation_probability_max: [10, 20, 30, 40, 50, 60, 70],
       sunrise: ["2026-10-10T06:00"],
       sunset: ["2026-10-10T18:00"],
     },
@@ -94,20 +107,53 @@ test("looks up a city and renders its current conditions", async () => {
   expect(forecastUrl.searchParams.get("hourly")).toContain(
     "precipitation_probability"
   );
-  expect(screen.getByText("Clear sky")).toBeInTheDocument();
+  expect(forecastUrl.searchParams.get("forecast_days")).toBe("7");
+  expect(forecastUrl.searchParams.get("daily")).toContain(
+    "temperature_2m_min"
+  );
+  expect(forecastUrl.searchParams.get("daily")).toContain(
+    "precipitation_probability_max"
+  );
+  expect(
+    screen.getByRole("region", { name: "Weather in Yangon" })
+  ).toHaveTextContent("Clear sky");
   expect(screen.getByText("72%")).toBeInTheDocument();
-  const hourlyForecast = screen.getByRole("region", {
-    name: "24-hour forecast",
+  const hourlyTab = screen.getByRole("tab", { name: "Hourly" });
+  const dailyTab = screen.getByRole("tab", { name: "7 days" });
+  expect(hourlyTab).toHaveAttribute("aria-selected", "true");
+  expect(dailyTab).toHaveAttribute("aria-selected", "false");
+  let hourlyForecast = screen.getByRole("tabpanel", { name: "Hourly" });
+  const hourlyScroll = screen.getByRole("group", {
+    name: "Hourly weather forecast; scroll horizontally to explore",
   });
+  expect(hourlyScroll).toHaveClass("forecast-scroll");
   expect(hourlyForecast.querySelectorAll(".hourly-item")).toHaveLength(24);
   expect(hourlyForecast).toHaveTextContent("Now");
   expect(hourlyForecast).toHaveTextContent("1:00 PM");
   expect(hourlyForecast).toHaveTextContent("32°");
   expect(hourlyForecast).toHaveTextContent("12%");
+  expect(screen.queryByRole("tabpanel", { name: "7 days" })).not.toBeInTheDocument();
+
+  fireEvent.click(dailyTab);
+  expect(dailyTab).toHaveAttribute("aria-selected", "true");
+  expect(hourlyTab).toHaveAttribute("aria-selected", "false");
+  let dailyForecast = screen.getByRole("tabpanel", { name: "7 days" });
+  expect(dailyForecast.querySelectorAll(".daily-item")).toHaveLength(7);
+  expect(dailyForecast.querySelector(".daily-item")).toHaveTextContent("Today");
+  expect(dailyForecast.querySelector(".daily-item")).toHaveTextContent("30°");
+  expect(dailyForecast.querySelector(".daily-item")).toHaveTextContent("20°");
+  expect(dailyForecast.querySelector(".daily-item")).toHaveTextContent("10% rain");
+  expect(screen.queryByRole("tabpanel", { name: "Hourly" })).not.toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: "°F" }));
   expect(document.querySelector(".temperature")).toHaveTextContent("86°");
+  fireEvent.click(hourlyTab);
+  hourlyForecast = screen.getByRole("tabpanel", { name: "Hourly" });
   expect(hourlyForecast).toHaveTextContent("90°");
+  fireEvent.click(dailyTab);
+  dailyForecast = screen.getByRole("tabpanel", { name: "7 days" });
+  expect(dailyForecast.querySelector(".daily-item")).toHaveTextContent("86°");
+  expect(dailyForecast.querySelector(".daily-item")).toHaveTextContent("68°");
 });
 
 test("shows a useful message when city search returns no matches", async () => {

@@ -1,10 +1,11 @@
 # Skyward weather app
 
 Search current weather by city or your device location. The dashboard includes
-temperature conversion, an interactive 24-hour forecast, humidity, wind,
-pressure, visibility, sunrise and sunset, quick city picks, and recent searches
-for the current session. Weather and place search are provided by Open-Meteo
-and do not require an API key.
+temperature conversion, a compact forecast panel with hourly and 7-day tabs,
+daily highs and lows, precipitation chances, humidity, wind, pressure,
+visibility, sunrise and sunset, quick city picks, and recent searches for the
+current session. Weather and place search are provided by Open-Meteo and do not
+require an API key.
 
 ## Run locally
 

@@ -44,6 +44,12 @@ const formatLocalTime = (date, timeZone) =>
     timeZone,
   }).format(date);
 
+const formatForecastDay = (date) =>
+  new Intl.DateTimeFormat("en", {
+    weekday: "short",
+    timeZone: "UTC",
+  }).format(new Date(`${date}T12:00:00Z`));
+
 const normalizeWeather = (location, forecast) => {
   const current = forecast.current;
   const daily = forecast.daily;
@@ -84,6 +90,13 @@ const normalizeWeather = (location, forecast) => {
           hourly.precipitation_probability[firstForecastHour + index],
         isDay: hourly.is_day[firstForecastHour + index] === 1,
       })),
+    daily: daily.time.map((date, index) => ({
+      date,
+      weatherCode: daily.weather_code[index],
+      high: daily.temperature_2m_max[index],
+      low: daily.temperature_2m_min[index],
+      precipitationProbability: daily.precipitation_probability_max[index],
+    })),
   };
 };
 
@@ -99,6 +112,7 @@ const CurrentWeather = () => {
   const [result, setResult] = useState(null);
   const [recentCities, setRecentCities] = useState([]);
   const [unit, setUnit] = useState("C");
+  const [forecastView, setForecastView] = useState("hourly");
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -140,10 +154,11 @@ const CurrentWeather = () => {
           "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,surface_pressure,visibility",
         hourly:
           "temperature_2m,precipitation_probability,weather_code,is_day",
-        daily: "sunrise,sunset",
+        daily:
+          "sunrise,sunset,weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
         timezone: "auto",
         wind_speed_unit: "ms",
-        forecast_days: "3",
+        forecast_days: "7",
       });
       const forecastResponse = await fetch(
         `https://api.open-meteo.com/v1/forecast?${forecastParams}`
@@ -431,47 +446,112 @@ const CurrentWeather = () => {
               )}
             </div>
           </section>
-          <section
-            aria-label="24-hour forecast"
-            className="hourly-section"
-          >
-            <div className="hourly-heading">
-              <div>
-                <p className="card-kicker">PLAN THE DAY</p>
-                <h2>Next 24 hours</h2>
-              </div>
-              <span>Scroll to explore</span>
-            </div>
-            <div
-              aria-label="Hourly weather forecast; scroll horizontally to explore"
-              className="hourly-scroll"
-              role="group"
-              tabIndex="0"
-            >
-              <div className="hourly-list">
-                {result.hourly.map((hour, index) => (
-                  <article
-                    aria-label={`${index === 0 ? "Now" : formatClock(hour.time)}, ${temperature(hour.temperature)} degrees, ${weatherDescription(hour.weatherCode)}, ${hour.precipitationProbability}% chance of rain`}
-                    className="hourly-item"
-                    key={hour.time}
-                  >
-                    <span className="hourly-time">
-                      {index === 0 ? "Now" : formatClock(hour.time)}
-                    </span>
-                    <span aria-hidden="true" className="hourly-icon">
-                      {weatherIcon(hour.weatherCode, hour.isDay)}
-                    </span>
-                    <strong className="hourly-temperature">
-                      {temperature(hour.temperature)}°
-                    </strong>
-                    <span className="hourly-rain">
-                      <span aria-hidden="true">↗</span>{" "}
-                      {hour.precipitationProbability}%
-                    </span>
-                  </article>
-                ))}
+          <section aria-label="Weather forecast" className="forecast-section">
+            <div className="forecast-header">
+              <h2>Forecast</h2>
+              <div className="forecast-tabs" role="tablist" aria-label="Forecast range">
+                <button
+                  aria-controls="hourly-forecast-panel"
+                  aria-selected={forecastView === "hourly"}
+                  className={forecastView === "hourly" ? "active" : ""}
+                  id="hourly-forecast-tab"
+                  onClick={() => setForecastView("hourly")}
+                  role="tab"
+                  type="button"
+                >
+                  Hourly
+                </button>
+                <button
+                  aria-controls="daily-forecast-panel"
+                  aria-selected={forecastView === "daily"}
+                  className={forecastView === "daily" ? "active" : ""}
+                  id="daily-forecast-tab"
+                  onClick={() => setForecastView("daily")}
+                  role="tab"
+                  type="button"
+                >
+                  7 days
+                </button>
               </div>
             </div>
+            {forecastView === "hourly" ? (
+              <div
+                aria-labelledby="hourly-forecast-tab"
+                className="forecast-panel"
+                id="hourly-forecast-panel"
+                role="tabpanel"
+                tabIndex="0"
+              >
+                <div
+                  aria-label="Hourly weather forecast; scroll horizontally to explore"
+                  className="forecast-scroll"
+                  role="group"
+                  tabIndex="0"
+                >
+                  <div className="forecast-strip hourly-strip">
+                    {result.hourly.map((hour, index) => (
+                      <article
+                        aria-label={`${index === 0 ? "Now" : formatClock(hour.time)}, ${temperature(hour.temperature)} degrees, ${weatherDescription(hour.weatherCode)}, ${hour.precipitationProbability}% chance of rain`}
+                        className="hourly-item"
+                        key={hour.time}
+                      >
+                        <span className="hourly-time">
+                          {index === 0 ? "Now" : formatClock(hour.time)}
+                        </span>
+                        <span aria-hidden="true" className="hourly-icon">
+                          {weatherIcon(hour.weatherCode, hour.isDay)}
+                        </span>
+                        <strong className="hourly-temperature">
+                          {temperature(hour.temperature)}°
+                        </strong>
+                        <span className="hourly-rain">
+                          {hour.precipitationProbability}%
+                        </span>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div
+                aria-labelledby="daily-forecast-tab"
+                className="forecast-panel"
+                id="daily-forecast-panel"
+                role="tabpanel"
+                tabIndex="0"
+              >
+                <div
+                  aria-label="Daily weather forecast; scroll horizontally to explore"
+                  className="forecast-scroll"
+                  role="group"
+                  tabIndex="0"
+                >
+                  <div className="forecast-strip daily-strip">
+                    {result.daily.map((day, index) => (
+                      <article
+                        aria-label={`${index === 0 ? "Today" : formatForecastDay(day.date)}, ${weatherDescription(day.weatherCode)}, high ${temperature(day.high)} degrees, low ${temperature(day.low)} degrees, ${day.precipitationProbability}% chance of rain`}
+                        className="daily-item"
+                        key={day.date}
+                      >
+                        <span className="daily-day">
+                          {index === 0 ? "Today" : formatForecastDay(day.date)}
+                        </span>
+                        <span aria-hidden="true" className="daily-icon">
+                          {weatherIcon(day.weatherCode, true)}
+                        </span>
+                        <span className="daily-rain">
+                          {day.precipitationProbability}% rain
+                        </span>
+                        <span className="daily-temperatures">
+                          <strong>{temperature(day.high)}°</strong>
+                          <span>{temperature(day.low)}°</span>
+                        </span>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
           </>
         ) : (
