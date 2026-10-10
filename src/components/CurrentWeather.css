@@ -244,6 +244,127 @@
   animation: rise-in 360ms ease both;
 }
 
+.environment-section {
+  margin-top: 15px;
+  animation: rise-in 360ms ease both;
+}
+
+.environment-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 2px 11px;
+}
+
+.environment-heading h2 {
+  margin: 7px 0 0;
+  color: #edf4f5;
+  font-size: 17px;
+  font-weight: 580;
+  letter-spacing: -0.4px;
+}
+
+.environment-heading > p {
+  margin: 0 0 2px;
+  color: #8d9ba6;
+  font-size: 11px;
+}
+
+.environment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+}
+
+.environment-card {
+  --health-accent: #aebbc2;
+  min-width: 0;
+  padding: 19px 21px;
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--health-accent);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.1);
+}
+
+.environment-card.tone-good {
+  --health-accent: #83d8bc;
+}
+
+.environment-card.tone-moderate {
+  --health-accent: #e3c26f;
+}
+
+.environment-card.tone-unhealthy-sensitive {
+  --health-accent: #e7a366;
+}
+
+.environment-card.tone-unhealthy,
+.environment-card.tone-very-unhealthy {
+  --health-accent: #e98484;
+}
+
+.environment-card.tone-hazardous {
+  --health-accent: #bf9be0;
+}
+
+.environment-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.environment-label {
+  color: #82939d;
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 1.15px;
+}
+
+.environment-card h3 {
+  margin: 6px 0 0;
+  color: #dce6e8;
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.environment-symbol {
+  color: var(--health-accent);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.environment-reading {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin-top: 16px;
+}
+
+.environment-reading strong {
+  color: #f0f5f6;
+  font-size: 29px;
+  font-weight: 570;
+  letter-spacing: -1px;
+  line-height: 1;
+}
+
+.environment-reading span {
+  color: var(--health-accent);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.environment-guidance {
+  min-height: 32px;
+  margin: 10px 0 0;
+  color: #9cabb3;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
 .forecast-header {
   display: flex;
   align-items: center;
@@ -843,6 +964,10 @@ input:focus-visible {
   .details-card {
     min-height: auto;
   }
+
+  .environment-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 480px) {
@@ -911,6 +1036,16 @@ input:focus-visible {
     min-height: 0;
     gap: 17px;
     padding: 20px;
+  }
+
+  .environment-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .environment-card {
+    padding: 18px;
   }
 
   .welcome-orbit {

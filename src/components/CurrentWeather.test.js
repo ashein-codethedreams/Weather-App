@@ -26,6 +26,7 @@ const mockForecastResponse = {
       wind_speed_10m: 3,
       surface_pressure: 1012,
       visibility: 10000,
+      uv_index: 7.4,
     },
     hourly: {
       time: hourlyTimes,
@@ -54,6 +55,16 @@ const mockForecastResponse = {
   }),
 };
 
+const mockAirQualityResponse = {
+  ok: true,
+  json: async () => ({
+    current: {
+      time: "2026-10-10T12:00",
+      us_aqi: 42,
+    },
+  }),
+};
+
 const mockGeocodingResponse = {
   ok: true,
   json: async () => ({
@@ -69,10 +80,15 @@ const mockGeocodingResponse = {
 };
 
 beforeEach(() => {
-  global.fetch = jest
-    .fn()
-    .mockResolvedValueOnce(mockGeocodingResponse)
-    .mockResolvedValue(mockForecastResponse);
+  global.fetch = jest.fn((url) => {
+    if (url.includes("geocoding-api")) {
+      return Promise.resolve(mockGeocodingResponse);
+    }
+    if (url.includes("air-quality-api")) {
+      return Promise.resolve(mockAirQualityResponse);
+    }
+    return Promise.resolve(mockForecastResponse);
+  });
 });
 
 afterEach(() => {
@@ -94,11 +110,20 @@ test("looks up a city and renders its current conditions", async () => {
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
   });
 
-  expect(global.fetch).toHaveBeenCalledTimes(2);
-  const geocodingUrl = new URL(global.fetch.mock.calls[0][0]);
+  expect(global.fetch).toHaveBeenCalledTimes(3);
+  const geocodingCall = global.fetch.mock.calls.find(([url]) =>
+    url.includes("geocoding-api")
+  );
+  const forecastCall = global.fetch.mock.calls.find(([url]) =>
+    url.includes("/v1/forecast")
+  );
+  const airQualityCall = global.fetch.mock.calls.find(([url]) =>
+    url.includes("air-quality-api")
+  );
+  const geocodingUrl = new URL(geocodingCall[0]);
   expect(geocodingUrl.origin).toBe("https://geocoding-api.open-meteo.com");
   expect(geocodingUrl.searchParams.get("name")).toBe("Yangon");
-  const forecastUrl = new URL(global.fetch.mock.calls[1][0]);
+  const forecastUrl = new URL(forecastCall[0]);
   expect(forecastUrl.origin).toBe("https://api.open-meteo.com");
   expect(forecastUrl.pathname).toBe("/v1/forecast");
   expect(forecastUrl.searchParams.get("latitude")).toBe("16.8");
@@ -114,10 +139,33 @@ test("looks up a city and renders its current conditions", async () => {
   expect(forecastUrl.searchParams.get("daily")).toContain(
     "precipitation_probability_max"
   );
+  expect(forecastUrl.searchParams.get("current")).toContain("uv_index");
+  const airQualityUrl = new URL(airQualityCall[0]);
+  expect(airQualityUrl.origin).toBe("https://air-quality-api.open-meteo.com");
+  expect(airQualityUrl.pathname).toBe("/v1/air-quality");
+  expect(airQualityUrl.searchParams.get("current")).toBe("us_aqi");
   expect(
     screen.getByRole("region", { name: "Weather in Yangon" })
   ).toHaveTextContent("Clear sky");
   expect(screen.getByText("72%")).toBeInTheDocument();
+  expect(screen.getByRole("article", { name: "Air quality" })).toHaveTextContent(
+    "42"
+  );
+  expect(screen.getByRole("article", { name: "Air quality" })).toHaveTextContent(
+    "Good"
+  );
+  expect(
+    screen.getByText("Air quality is good. Enjoy your usual outdoor activities.")
+  ).toBeInTheDocument();
+  expect(screen.getByRole("article", { name: "UV index" })).toHaveTextContent(
+    "7.4"
+  );
+  expect(screen.getByRole("article", { name: "UV index" })).toHaveTextContent(
+    "High"
+  );
+  expect(
+    screen.getByText("Reduce midday sun and use sunscreen, a hat, and sunglasses.")
+  ).toBeInTheDocument();
   const hourlyTab = screen.getByRole("tab", { name: "Hourly" });
   const dailyTab = screen.getByRole("tab", { name: "7 days" });
   expect(hourlyTab).toHaveAttribute("aria-selected", "true");
@@ -177,10 +225,15 @@ test("shows a useful message when city search returns no matches", async () => {
 });
 
 test("shows the weather route error instead of silently failing", async () => {
-  global.fetch
-    .mockReset()
-    .mockResolvedValueOnce(mockGeocodingResponse)
-    .mockResolvedValueOnce({ ok: false, status: 503 });
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("geocoding-api")) {
+      return Promise.resolve(mockGeocodingResponse);
+    }
+    if (url.includes("/v1/forecast")) {
+      return Promise.resolve({ ok: false, status: 503 });
+    }
+    return Promise.resolve(mockAirQualityResponse);
+  });
   render(<CurrentWeather />);
 
   fireEvent.change(screen.getByRole("textbox", { name: "Search for a city" }), {
@@ -196,7 +249,13 @@ test("shows the weather route error instead of silently failing", async () => {
 });
 
 test("uses the device coordinates for a current-location search", async () => {
-  global.fetch = jest.fn().mockResolvedValue(mockForecastResponse);
+  global.fetch = jest.fn((url) =>
+    Promise.resolve(
+      url.includes("air-quality-api")
+        ? mockAirQualityResponse
+        : mockForecastResponse
+    )
+  );
   Object.defineProperty(navigator, "geolocation", {
     configurable: true,
     value: {
@@ -214,4 +273,35 @@ test("uses the device coordinates for a current-location search", async () => {
   expect(forecastUrl.searchParams.get("latitude")).toBe("16.8");
   expect(forecastUrl.searchParams.get("longitude")).toBe("96.15");
   expect(screen.getByRole("heading", { name: /Your location/ })).toBeInTheDocument();
+});
+
+test("keeps weather available and explains when air quality cannot be loaded", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("geocoding-api")) {
+      return Promise.resolve(mockGeocodingResponse);
+    }
+    if (url.includes("air-quality-api")) {
+      return Promise.resolve({ ok: false, status: 503 });
+    }
+    return Promise.resolve(mockForecastResponse);
+  });
+  render(<CurrentWeather />);
+
+  fireEvent.change(screen.getByRole("textbox", { name: "Search for a city" }), {
+    target: { value: "Yangon" },
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+  });
+
+  expect(screen.getByRole("region", { name: "Weather in Yangon" })).toBeInTheDocument();
+  expect(screen.getByRole("article", { name: "Air quality" })).toHaveTextContent(
+    "Air quality is unavailable"
+  );
+  expect(screen.getByRole("article", { name: "Air quality" })).toHaveTextContent(
+    "Air quality service returned HTTP 503"
+  );
+  expect(screen.getByRole("article", { name: "UV index" })).toHaveTextContent(
+    "High"
+  );
 });

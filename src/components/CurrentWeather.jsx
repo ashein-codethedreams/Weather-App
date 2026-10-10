@@ -50,6 +50,99 @@ const formatForecastDay = (date) =>
     timeZone: "UTC",
   }).format(new Date(`${date}T12:00:00Z`));
 
+const airQualityInfo = (value) => {
+  const aqi = Math.round(value);
+  if (aqi <= 50) {
+    return {
+      value: aqi,
+      level: "Good",
+      tone: "good",
+      guidance: "Air quality is good. Enjoy your usual outdoor activities.",
+    };
+  }
+  if (aqi <= 100) {
+    return {
+      value: aqi,
+      level: "Moderate",
+      tone: "moderate",
+      guidance:
+        "Air is acceptable. Sensitive people may want to take it easier outdoors.",
+    };
+  }
+  if (aqi <= 150) {
+    return {
+      value: aqi,
+      level: "Unhealthy for sensitive groups",
+      tone: "unhealthy-sensitive",
+      guidance:
+        "Sensitive groups should limit prolonged or heavy outdoor exertion.",
+    };
+  }
+  if (aqi <= 200) {
+    return {
+      value: aqi,
+      level: "Unhealthy",
+      tone: "unhealthy",
+      guidance:
+        "Consider limiting time outdoors; sensitive groups should avoid exertion.",
+    };
+  }
+  if (aqi <= 300) {
+    return {
+      value: aqi,
+      level: "Very unhealthy",
+      tone: "very-unhealthy",
+      guidance: "Reduce outdoor activity and keep windows closed.",
+    };
+  }
+  return {
+    value: aqi,
+    level: "Hazardous",
+    tone: "hazardous",
+    guidance: "Avoid outdoor activity and keep windows closed.",
+  };
+};
+
+const uvIndexInfo = (value) => {
+  if (value < 3) {
+    return {
+      level: "Low",
+      tone: "good",
+      guidance:
+        "Protection is usually not needed. Wear sunglasses on bright days.",
+    };
+  }
+  if (value < 6) {
+    return {
+      level: "Moderate",
+      tone: "moderate",
+      guidance: "Seek shade around midday and wear sunscreen.",
+    };
+  }
+  if (value < 8) {
+    return {
+      level: "High",
+      tone: "unhealthy-sensitive",
+      guidance:
+        "Reduce midday sun and use sunscreen, a hat, and sunglasses.",
+    };
+  }
+  if (value < 11) {
+    return {
+      level: "Very high",
+      tone: "very-unhealthy",
+      guidance:
+        "Avoid midday sun; use shade, protective clothing, and sunscreen.",
+    };
+  }
+  return {
+    level: "Extreme",
+    tone: "hazardous",
+    guidance:
+      "Stay indoors or in deep shade around midday and protect all exposed skin.",
+  };
+};
+
 const normalizeWeather = (location, forecast) => {
   const current = forecast.current;
   const daily = forecast.daily;
@@ -71,6 +164,7 @@ const normalizeWeather = (location, forecast) => {
       feels_like: current.apparent_temperature,
       humidity: current.relative_humidity_2m,
       pressure: current.surface_pressure,
+      uvIndex: current.uv_index,
     },
     wind: { speed: current.wind_speed_10m },
     visibility: current.visibility,
@@ -151,7 +245,7 @@ const CurrentWeather = () => {
         latitude: String(location.latitude),
         longitude: String(location.longitude),
         current:
-          "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,surface_pressure,visibility",
+          "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,surface_pressure,visibility,uv_index",
         hourly:
           "temperature_2m,precipitation_probability,weather_code,is_day",
         daily:
@@ -160,11 +254,35 @@ const CurrentWeather = () => {
         wind_speed_unit: "ms",
         forecast_days: "7",
       });
-      const forecastResponse = await fetch(
-        `https://api.open-meteo.com/v1/forecast?${forecastParams}`
-      );
+      const airQualityParams = new URLSearchParams({
+        latitude: String(location.latitude),
+        longitude: String(location.longitude),
+        current: "us_aqi",
+        timezone: "auto",
+      });
+      const [forecastResponse, airQualityResult] = await Promise.all([
+        fetch(`https://api.open-meteo.com/v1/forecast?${forecastParams}`),
+        fetch(
+          `https://air-quality-api.open-meteo.com/v1/air-quality?${airQualityParams}`
+        )
+          .then((response) => readJson(response, "Air quality service"))
+          .then((data) => ({ data }))
+          .catch((error) => ({ error })),
+      ]);
       const forecast = await readJson(forecastResponse, "Weather service");
       const weather = normalizeWeather(location, forecast);
+      const aqi = airQualityResult.data?.current?.us_aqi;
+      weather.airQuality =
+        Number.isFinite(aqi) ? airQualityInfo(aqi) : null;
+      weather.airQualityError = airQualityResult.error
+        ? airQualityResult.error instanceof TypeError
+          ? "Unable to connect to the air quality service."
+          : `${airQualityResult.error.message}`
+        : null;
+      const uvIndex = weather.main.uvIndex;
+      weather.uvIndex = Number.isFinite(uvIndex)
+        ? { value: uvIndex, ...uvIndexInfo(uvIndex) }
+        : null;
       setResult(weather);
       setCity(weather.name);
       setRecentCities((cities) =>
@@ -552,6 +670,92 @@ const CurrentWeather = () => {
                 </div>
               </div>
             )}
+          </section>
+          <section
+            aria-label="Air quality and UV index"
+            className="environment-section"
+          >
+            <div className="environment-heading">
+              <div>
+                <p className="card-kicker">FOR YOUR TIME OUTSIDE</p>
+                <h2>Air &amp; sun</h2>
+              </div>
+              <p>Simple guidance for the conditions right now.</p>
+            </div>
+            <div className="environment-grid">
+              <article
+                aria-label="Air quality"
+                className={`environment-card ${
+                  result.airQuality
+                    ? `tone-${result.airQuality.tone}`
+                    : "tone-unavailable"
+                }`}
+              >
+                <div className="environment-card-top">
+                  <div>
+                    <span className="environment-label">AIR QUALITY</span>
+                    <h3>US Air Quality Index</h3>
+                  </div>
+                  <span className="environment-symbol" aria-hidden="true">
+                    ◉
+                  </span>
+                </div>
+                {result.airQuality ? (
+                  <>
+                    <div className="environment-reading">
+                      <strong>{result.airQuality.value}</strong>
+                      <span>{result.airQuality.level}</span>
+                    </div>
+                    <p className="environment-guidance">
+                      {result.airQuality.guidance}
+                    </p>
+                  </>
+                ) : (
+                  <p className="environment-guidance" role="status">
+                    Air quality is unavailable
+                    {result.airQualityError
+                      ? ` — ${result.airQualityError}`
+                      : " for this location right now."}
+                  </p>
+                )}
+              </article>
+
+              <article
+                aria-label="UV index"
+                className={`environment-card ${
+                  result.uvIndex ? `tone-${result.uvIndex.tone}` : "tone-unavailable"
+                }`}
+              >
+                <div className="environment-card-top">
+                  <div>
+                    <span className="environment-label">SUN EXPOSURE</span>
+                    <h3>UV Index</h3>
+                  </div>
+                  <span className="environment-symbol" aria-hidden="true">
+                    ☼
+                  </span>
+                </div>
+                {result.uvIndex ? (
+                  <>
+                    <div className="environment-reading">
+                      <strong>
+                        {Number.isInteger(result.uvIndex.value)
+                          ? result.uvIndex.value
+                          : result.uvIndex.value.toFixed(1)}
+                      </strong>
+                      <span>{result.uvIndex.level}</span>
+                    </div>
+                    <p className="environment-guidance">
+                      {result.uvIndex.guidance}
+                    </p>
+                  </>
+                ) : (
+                  <p className="environment-guidance" role="status">
+                    UV index is unavailable for this location right now.
+                  </p>
+                )}
+              </article>
+            </div>
           </section>
           </>
         ) : (
