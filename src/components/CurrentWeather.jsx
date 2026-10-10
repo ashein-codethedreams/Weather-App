@@ -239,12 +239,14 @@ const CurrentWeather = () => {
   const [forecastView, setForecastView] = useState("hourly");
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [shareFeedback, setShareFeedback] = useState(null);
 
   const searchWeather = useCallback(
     async (searchParams, { updateUrl = true } = {}) => {
       setIsLoading(true);
       setMessage("");
       setResult(null);
+      setShareFeedback(null);
 
       try {
         let location;
@@ -402,6 +404,47 @@ const CurrentWeather = () => {
     );
   };
 
+  const handleShare = async () => {
+    const url = window.location.href;
+    const shareData = {
+      title: `Weather in ${result.name}`,
+      text: `Check out the forecast for ${result.name}.`,
+      url,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        setShareFeedback({ text: "Shared successfully.", isError: false });
+        return;
+      }
+      if (!navigator.clipboard?.writeText) {
+        throw new Error("Clipboard access is unavailable.");
+      }
+      await navigator.clipboard.writeText(url);
+      setShareFeedback({ text: "Link copied to clipboard.", isError: false });
+    } catch (error) {
+      if (error.name === "AbortError") return;
+
+      if (navigator.share && navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(url);
+          setShareFeedback({
+            text: "Link copied to clipboard.",
+            isError: false,
+          });
+          return;
+        } catch {
+          // Show the manual-copy option below if both sharing methods fail.
+        }
+      }
+      setShareFeedback({
+        text: "Couldn't share automatically. Copy the URL from the address bar.",
+        isError: true,
+      });
+    }
+  };
+
   const temperature = (value) =>
     Math.round(unit === "C" ? value : (value * 9) / 5 + 32);
   const windSpeed = (value) =>
@@ -505,21 +548,38 @@ const CurrentWeather = () => {
                     {formatLocalTime(new Date(), result.timezone)} local time
                   </p>
                 </div>
-                <div className="unit-switch" aria-label="Temperature unit">
+                <div className="card-actions">
                   <button
-                    aria-pressed={unit === "C"}
-                    onClick={() => setUnit("C")}
+                    className="share-button"
+                    onClick={handleShare}
                     type="button"
                   >
-                    °C
+                    <span aria-hidden="true">↗</span> Share
                   </button>
-                  <button
-                    aria-pressed={unit === "F"}
-                    onClick={() => setUnit("F")}
-                    type="button"
-                  >
-                    °F
-                  </button>
+                  <div className="unit-switch" aria-label="Temperature unit">
+                    <button
+                      aria-pressed={unit === "C"}
+                      onClick={() => setUnit("C")}
+                      type="button"
+                    >
+                      °C
+                    </button>
+                    <button
+                      aria-pressed={unit === "F"}
+                      onClick={() => setUnit("F")}
+                      type="button"
+                    >
+                      °F
+                    </button>
+                  </div>
+                  {shareFeedback && (
+                    <span
+                      className={`share-feedback${shareFeedback.isError ? " error" : ""}`}
+                      role={shareFeedback.isError ? "alert" : "status"}
+                    >
+                      {shareFeedback.text}
+                    </span>
+                  )}
                 </div>
               </div>
 

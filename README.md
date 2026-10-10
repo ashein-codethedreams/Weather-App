@@ -7,6 +7,8 @@ visibility, sunrise and sunset, air-quality and UV readings with plain-language
 outdoor guidance, quick city picks, and recent searches for the current session.
 Weather, air quality, and place search are provided by Open-Meteo and do not
 require an API key.
+Use the **Share** button on a forecast to open your device's share sheet or copy
+a link to that location.
 
 Skyward can be installed from supported browsers and caches its app shell and
 recent weather lookups for quicker repeat visits and offline access. On iPhone

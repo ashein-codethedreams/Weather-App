@@ -6,6 +6,8 @@ const originalGeolocation = Object.getOwnPropertyDescriptor(
   navigator,
   "geolocation"
 );
+const originalShare = Object.getOwnPropertyDescriptor(navigator, "share");
+const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
 
 const hourlyTimes = Array.from({ length: 40 }, (_, index) => {
   const date = new Date(Date.UTC(2026, 9, 10, index));
@@ -94,6 +96,16 @@ beforeEach(() => {
 afterEach(() => {
   global.fetch = originalFetch;
   window.history.replaceState({}, "", "/");
+  if (originalShare) {
+    Object.defineProperty(navigator, "share", originalShare);
+  } else {
+    delete navigator.share;
+  }
+  if (originalClipboard) {
+    Object.defineProperty(navigator, "clipboard", originalClipboard);
+  } else {
+    delete navigator.clipboard;
+  }
   if (originalGeolocation) {
     Object.defineProperty(navigator, "geolocation", originalGeolocation);
   } else {
@@ -231,6 +243,58 @@ test("loads the selected coordinates from a shareable URL", async () => {
   expect(
     screen.getByRole("region", { name: "Weather in Yangon" })
   ).toBeInTheDocument();
+});
+
+test("shares the selected forecast using the device share sheet", async () => {
+  window.history.replaceState(
+    {},
+    "",
+    "/?lat=16.8&lon=96.15&name=Yangon&country=MM"
+  );
+  const share = jest.fn().mockResolvedValue();
+  Object.defineProperty(navigator, "share", {
+    configurable: true,
+    value: share,
+  });
+
+  await act(async () => {
+    render(<CurrentWeather />);
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: /share/i }));
+  });
+
+  expect(share).toHaveBeenCalledWith({
+    title: "Weather in Yangon",
+    text: "Check out the forecast for Yangon.",
+    url: window.location.href,
+  });
+  expect(screen.getByRole("status")).toHaveTextContent("Shared successfully.");
+});
+
+test("copies the selected forecast link when device sharing is unavailable", async () => {
+  window.history.replaceState(
+    {},
+    "",
+    "/?lat=16.8&lon=96.15&name=Yangon&country=MM"
+  );
+  const writeText = jest.fn().mockResolvedValue();
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText },
+  });
+
+  await act(async () => {
+    render(<CurrentWeather />);
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: /share/i }));
+  });
+
+  expect(writeText).toHaveBeenCalledWith(window.location.href);
+  expect(screen.getByRole("status")).toHaveTextContent(
+    "Link copied to clipboard."
+  );
 });
 
 test("shows a useful message when city search returns no matches", async () => {

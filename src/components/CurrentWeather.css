@@ -681,6 +681,52 @@
   background: rgba(4, 15, 22, 0.22);
 }
 
+.card-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+}
+
+.share-button {
+  min-height: 29px;
+  padding: 0 9px;
+  border: 1px solid rgba(131, 216, 188, 0.26);
+  border-radius: 6px;
+  background: rgba(131, 216, 188, 0.07);
+  color: #a9e7d1;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.share-button:hover {
+  border-color: rgba(131, 216, 188, 0.55);
+  background: rgba(131, 216, 188, 0.12);
+}
+
+.share-button:focus-visible {
+  outline: 2px solid #8bdec1;
+  outline-offset: 3px;
+}
+
+.share-button span {
+  margin-right: 3px;
+}
+
+.share-feedback {
+  max-width: 180px;
+  color: #a9e7d1;
+  font-size: 10px;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.share-feedback.error {
+  color: #ffc2bd;
+}
+
 .unit-switch button {
   min-width: 31px;
   height: 26px;
