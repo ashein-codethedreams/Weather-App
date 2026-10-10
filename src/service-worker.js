@@ -6,6 +6,14 @@ import { NetworkFirst } from 'workbox-strategies';
 
 clientsClaim();
 
+// eslint-disable-next-line no-restricted-globals
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    // eslint-disable-next-line no-restricted-globals
+    self.skipWaiting();
+  }
+});
+
 // Workbox injects the production asset list at build time.
 // eslint-disable-next-line no-restricted-globals
 precacheAndRoute(self.__WB_MANIFEST);

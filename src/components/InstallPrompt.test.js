@@ -22,3 +22,27 @@ test("offers the browser install prompt when it becomes available", async () => 
     screen.queryByRole("button", { name: /install app/i })
   ).not.toBeInTheDocument();
 });
+
+test("offers an update when a new app version is ready", () => {
+  render(<InstallPrompt />);
+  const waitingWorker = { postMessage: jest.fn() };
+
+  act(() => {
+    window.dispatchEvent(
+      new CustomEvent("skyward:updateavailable", { detail: waitingWorker })
+    );
+  });
+
+  const updateEvent = jest
+    .spyOn(window, "dispatchEvent")
+    .mockImplementation(() => true);
+  fireEvent.click(screen.getByRole("button", { name: /update app/i }));
+
+  expect(updateEvent).toHaveBeenCalledWith(
+    expect.objectContaining({
+      type: "skyward:apply-update",
+      detail: waitingWorker,
+    })
+  );
+  updateEvent.mockRestore();
+});

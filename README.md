@@ -12,6 +12,9 @@ Skyward can be installed from supported browsers and caches its app shell and
 recent weather lookups for quicker repeat visits and offline access. On iPhone
 or iPad, use Share → Add to Home Screen in Safari.
 
+When a new version is deployed, an **Update app** button appears in the app.
+Tap it to install the update and reload; you do not need to uninstall the app.
+
 ## Run locally
 
 1. Install dependencies and start the app:
