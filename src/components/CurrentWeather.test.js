@@ -7,7 +7,20 @@ const originalGeolocation = Object.getOwnPropertyDescriptor(
   "geolocation"
 );
 const originalShare = Object.getOwnPropertyDescriptor(navigator, "share");
+const originalCanShare = Object.getOwnPropertyDescriptor(navigator, "canShare");
 const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+const originalCanvasGetContext = Object.getOwnPropertyDescriptor(
+  HTMLCanvasElement.prototype,
+  "getContext"
+);
+const originalCanvasToBlob = Object.getOwnPropertyDescriptor(
+  HTMLCanvasElement.prototype,
+  "toBlob"
+);
+const originalCreateObjectURL = URL.createObjectURL;
+const originalRevokeObjectURL = URL.revokeObjectURL;
+const originalAnchorClick = HTMLAnchorElement.prototype.click;
+let canvasText;
 
 const hourlyTimes = Array.from({ length: 40 }, (_, index) => {
   const date = new Date(Date.UTC(2026, 9, 10, index));
@@ -82,6 +95,26 @@ const mockGeocodingResponse = {
 };
 
 beforeEach(() => {
+  canvasText = [];
+  Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+    configurable: true,
+    value: () => ({
+      arc: jest.fn(),
+      beginPath: jest.fn(),
+      fill: jest.fn(),
+      fillRect: jest.fn(),
+      fillText: (text) => canvasText.push(text),
+      createLinearGradient: () => ({ addColorStop: jest.fn() }),
+      measureText: () => ({ width: 100 }),
+    }),
+  });
+  Object.defineProperty(HTMLCanvasElement.prototype, "toBlob", {
+    configurable: true,
+    value: (callback) => callback(new Blob(["weather card"], { type: "image/png" })),
+  });
+  URL.createObjectURL = jest.fn(() => "blob:weather-card");
+  URL.revokeObjectURL = jest.fn();
+  HTMLAnchorElement.prototype.click = jest.fn();
   global.fetch = jest.fn((url) => {
     if (url.includes("geocoding-api")) {
       return Promise.resolve(mockGeocodingResponse);
@@ -101,11 +134,37 @@ afterEach(() => {
   } else {
     delete navigator.share;
   }
+  if (originalCanShare) {
+    Object.defineProperty(navigator, "canShare", originalCanShare);
+  } else {
+    delete navigator.canShare;
+  }
   if (originalClipboard) {
     Object.defineProperty(navigator, "clipboard", originalClipboard);
   } else {
     delete navigator.clipboard;
   }
+  if (originalCanvasGetContext) {
+    Object.defineProperty(
+      HTMLCanvasElement.prototype,
+      "getContext",
+      originalCanvasGetContext
+    );
+  } else {
+    delete HTMLCanvasElement.prototype.getContext;
+  }
+  if (originalCanvasToBlob) {
+    Object.defineProperty(
+      HTMLCanvasElement.prototype,
+      "toBlob",
+      originalCanvasToBlob
+    );
+  } else {
+    delete HTMLCanvasElement.prototype.toBlob;
+  }
+  URL.createObjectURL = originalCreateObjectURL;
+  URL.revokeObjectURL = originalRevokeObjectURL;
+  HTMLAnchorElement.prototype.click = originalAnchorClick;
   if (originalGeolocation) {
     Object.defineProperty(navigator, "geolocation", originalGeolocation);
   } else {
@@ -256,20 +315,37 @@ test("shares the selected forecast using the device share sheet", async () => {
     configurable: true,
     value: share,
   });
+  Object.defineProperty(navigator, "canShare", {
+    configurable: true,
+    value: jest.fn(() => true),
+  });
 
   await act(async () => {
     render(<CurrentWeather />);
   });
+  fireEvent.click(screen.getByRole("button", { name: "°F" }));
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: /share/i }));
   });
 
-  expect(share).toHaveBeenCalledWith({
+  const shareData = share.mock.calls[0][0];
+  expect(shareData).toMatchObject({
     title: "Weather in Yangon",
-    text: "Check out the forecast for Yangon.",
-    url: window.location.href,
+    text: expect.stringContaining("Weather in Yangon: 30°C."),
   });
-  expect(screen.getByRole("status")).toHaveTextContent("Shared successfully.");
+  expect(shareData.files).toHaveLength(1);
+  expect(shareData.files[0]).toMatchObject({
+    name: "skyward-yangon-weather.png",
+    type: "image/png",
+  });
+  expect(canvasText).toContain("Yangon");
+  expect(canvasText).toContain("30°C");
+  expect(shareData.text).toContain(window.location.href);
+  expect(share).toHaveBeenCalledWith(expect.objectContaining({
+    title: "Weather in Yangon",
+    files: shareData.files,
+  }));
+  expect(screen.getByRole("status")).toHaveTextContent("Weather card shared.");
 });
 
 test("copies the selected forecast link when device sharing is unavailable", async () => {
@@ -292,8 +368,9 @@ test("copies the selected forecast link when device sharing is unavailable", asy
   });
 
   expect(writeText).toHaveBeenCalledWith(window.location.href);
+  expect(HTMLAnchorElement.prototype.click).toHaveBeenCalled();
   expect(screen.getByRole("status")).toHaveTextContent(
-    "Link copied to clipboard."
+    "Weather card downloaded and link copied."
   );
 });
 

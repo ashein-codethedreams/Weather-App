@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import "./CurrentWeather.css";
 import InstallPrompt from "./InstallPrompt";
+import { createWeatherCardImage, downloadWeatherCard } from "./weatherShare";
 
 const QUICK_CITIES = ["Yangon", "Bangkok", "Singapore", "Tokyo"];
 
@@ -406,40 +407,52 @@ const CurrentWeather = () => {
 
   const handleShare = async () => {
     const url = window.location.href;
-    const shareData = {
-      title: `Weather in ${result.name}`,
-      text: `Check out the forecast for ${result.name}.`,
-      url,
-    };
 
     try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-        setShareFeedback({ text: "Shared successfully.", isError: false });
-        return;
-      }
-      if (!navigator.clipboard?.writeText) {
-        throw new Error("Clipboard access is unavailable.");
-      }
-      await navigator.clipboard.writeText(url);
-      setShareFeedback({ text: "Link copied to clipboard.", isError: false });
-    } catch (error) {
-      if (error.name === "AbortError") return;
+      const image = await createWeatherCardImage(result);
+      const shareData = {
+        files: [image],
+        title: `Weather in ${result.name}`,
+        text: `Weather in ${result.name}: ${Math.round(result.main.temp)}°C. ${url}`,
+      };
 
-      if (navigator.share && navigator.clipboard?.writeText) {
+      if (navigator.share && navigator.canShare?.({ files: [image] })) {
+        try {
+          await navigator.share(shareData);
+          setShareFeedback({ text: "Weather card shared.", isError: false });
+          return;
+        } catch (error) {
+          if (error.name === "AbortError") return;
+        }
+      }
+
+      downloadWeatherCard(image);
+      if (navigator.clipboard?.writeText) {
         try {
           await navigator.clipboard.writeText(url);
           setShareFeedback({
-            text: "Link copied to clipboard.",
+            text: "Weather card downloaded and link copied.",
             isError: false,
           });
           return;
         } catch {
-          // Show the manual-copy option below if both sharing methods fail.
+          setShareFeedback({
+            text: "Weather card downloaded. Copy the forecast link from the address bar.",
+            isError: true,
+          });
+          return;
         }
       }
+
       setShareFeedback({
-        text: "Couldn't share automatically. Copy the URL from the address bar.",
+        text: "Weather card downloaded. Copy the forecast link from the address bar.",
+        isError: true,
+      });
+    } catch (error) {
+      if (error.name === "AbortError") return;
+
+      setShareFeedback({
+        text: "Couldn't create or share the weather card. Copy the forecast link from the address bar.",
         isError: true,
       });
     }
