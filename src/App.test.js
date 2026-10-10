@@ -1,7 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders the weather app title', () => {
+test('renders the current weather app', () => {
   render(<App />);
-  expect(screen.getByText(/weather pulse/i)).toBeInTheDocument();
+  expect(
+    screen.getByRole('heading', { name: /look outside, from anywhere/i })
+  ).toBeInTheDocument();
 });

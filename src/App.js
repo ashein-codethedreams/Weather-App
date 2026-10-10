@@ -3,7 +3,7 @@ import CurrentWeather from "./components/CurrentWeather";
 
 function App() {
   return (
-    <div className="app-shell">
+    <div className="App">
       <CurrentWeather />
     </div>
   );
