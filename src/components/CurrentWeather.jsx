@@ -47,7 +47,10 @@ const formatLocalTime = (date, timeZone) =>
 const normalizeWeather = (location, forecast) => {
   const current = forecast.current;
   const daily = forecast.daily;
+  const hourly = forecast.hourly;
   const weatherCode = current.weather_code;
+  const forecastStart = hourly.time.findIndex((time) => time >= current.time);
+  const firstForecastHour = Math.max(0, forecastStart);
 
   return {
     name: location.name,
@@ -71,6 +74,16 @@ const normalizeWeather = (location, forecast) => {
         icon: weatherIcon(weatherCode, current.is_day === 1),
       },
     ],
+    hourly: hourly.time
+      .slice(firstForecastHour, firstForecastHour + 24)
+      .map((time, index) => ({
+        time,
+        temperature: hourly.temperature_2m[firstForecastHour + index],
+        weatherCode: hourly.weather_code[firstForecastHour + index],
+        precipitationProbability:
+          hourly.precipitation_probability[firstForecastHour + index],
+        isDay: hourly.is_day[firstForecastHour + index] === 1,
+      })),
   };
 };
 
@@ -125,10 +138,12 @@ const CurrentWeather = () => {
         longitude: String(location.longitude),
         current:
           "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,surface_pressure,visibility",
+        hourly:
+          "temperature_2m,precipitation_probability,weather_code,is_day",
         daily: "sunrise,sunset",
         timezone: "auto",
         wind_speed_unit: "ms",
-        forecast_days: "1",
+        forecast_days: "3",
       });
       const forecastResponse = await fetch(
         `https://api.open-meteo.com/v1/forecast?${forecastParams}`
@@ -266,6 +281,7 @@ const CurrentWeather = () => {
         )}
 
         {result ? (
+          <>
           <section aria-label={`Weather in ${result.name}`} className="weather-layout">
             <article className="current-card">
               <div className="card-heading">
@@ -402,7 +418,7 @@ const CurrentWeather = () => {
                         key={name}
                         onClick={() => {
                           setCity(name);
-                          searchWeather({ q: name });
+                          searchWeather({ city: name });
                         }}
                         type="button"
                       >
@@ -415,6 +431,49 @@ const CurrentWeather = () => {
               )}
             </div>
           </section>
+          <section
+            aria-label="24-hour forecast"
+            className="hourly-section"
+          >
+            <div className="hourly-heading">
+              <div>
+                <p className="card-kicker">PLAN THE DAY</p>
+                <h2>Next 24 hours</h2>
+              </div>
+              <span>Scroll to explore</span>
+            </div>
+            <div
+              aria-label="Hourly weather forecast; scroll horizontally to explore"
+              className="hourly-scroll"
+              role="group"
+              tabIndex="0"
+            >
+              <div className="hourly-list">
+                {result.hourly.map((hour, index) => (
+                  <article
+                    aria-label={`${index === 0 ? "Now" : formatClock(hour.time)}, ${temperature(hour.temperature)} degrees, ${weatherDescription(hour.weatherCode)}, ${hour.precipitationProbability}% chance of rain`}
+                    className="hourly-item"
+                    key={hour.time}
+                  >
+                    <span className="hourly-time">
+                      {index === 0 ? "Now" : formatClock(hour.time)}
+                    </span>
+                    <span aria-hidden="true" className="hourly-icon">
+                      {weatherIcon(hour.weatherCode, hour.isDay)}
+                    </span>
+                    <strong className="hourly-temperature">
+                      {temperature(hour.temperature)}°
+                    </strong>
+                    <span className="hourly-rain">
+                      <span aria-hidden="true">↗</span>{" "}
+                      {hour.precipitationProbability}%
+                    </span>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+          </>
         ) : (
           !isLoading && (
             <section className="welcome-card">

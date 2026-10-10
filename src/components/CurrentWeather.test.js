@@ -7,11 +7,17 @@ const originalGeolocation = Object.getOwnPropertyDescriptor(
   "geolocation"
 );
 
+const hourlyTimes = Array.from({ length: 40 }, (_, index) => {
+  const date = new Date(Date.UTC(2026, 9, 10, index));
+  return date.toISOString().slice(0, 16);
+});
+
 const mockForecastResponse = {
   ok: true,
   json: async () => ({
     timezone: "Asia/Yangon",
     current: {
+      time: "2026-10-10T12:00",
       temperature_2m: 30,
       relative_humidity_2m: 72,
       apparent_temperature: 32,
@@ -20,6 +26,13 @@ const mockForecastResponse = {
       wind_speed_10m: 3,
       surface_pressure: 1012,
       visibility: 10000,
+    },
+    hourly: {
+      time: hourlyTimes,
+      temperature_2m: hourlyTimes.map((_, index) => 20 + index),
+      precipitation_probability: hourlyTimes.map((_, index) => index),
+      weather_code: hourlyTimes.map((_, index) => (index % 2 === 0 ? 0 : 61)),
+      is_day: hourlyTimes.map(() => 1),
     },
     daily: {
       sunrise: ["2026-10-10T06:00"],
@@ -78,11 +91,23 @@ test("looks up a city and renders its current conditions", async () => {
   expect(forecastUrl.searchParams.get("latitude")).toBe("16.8");
   expect(forecastUrl.searchParams.get("longitude")).toBe("96.15");
   expect(forecastUrl.searchParams.get("current")).toContain("temperature_2m");
+  expect(forecastUrl.searchParams.get("hourly")).toContain(
+    "precipitation_probability"
+  );
   expect(screen.getByText("Clear sky")).toBeInTheDocument();
   expect(screen.getByText("72%")).toBeInTheDocument();
+  const hourlyForecast = screen.getByRole("region", {
+    name: "24-hour forecast",
+  });
+  expect(hourlyForecast.querySelectorAll(".hourly-item")).toHaveLength(24);
+  expect(hourlyForecast).toHaveTextContent("Now");
+  expect(hourlyForecast).toHaveTextContent("1:00 PM");
+  expect(hourlyForecast).toHaveTextContent("32°");
+  expect(hourlyForecast).toHaveTextContent("12%");
 
   fireEvent.click(screen.getByRole("button", { name: "°F" }));
   expect(document.querySelector(".temperature")).toHaveTextContent("86°");
+  expect(hourlyForecast).toHaveTextContent("90°");
 });
 
 test("shows a useful message when city search returns no matches", async () => {
