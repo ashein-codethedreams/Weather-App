@@ -1,5 +1,6 @@
 import { useState } from "react";
 import "./CurrentWeather.css";
+import InstallPrompt from "./InstallPrompt";
 
 const QUICK_CITIES = ["Yangon", "Bangkok", "Singapore", "Tokyo"];
 
@@ -345,9 +346,12 @@ const CurrentWeather = () => {
           </span>
           <span>skyward</span>
         </a>
-        <div className="live-indicator">
-          <span className="live-dot" />
-          LIVE CONDITIONS
+        <div className="topbar-actions">
+          <InstallPrompt />
+          <div className="live-indicator">
+            <span className="live-dot" />
+            LIVE CONDITIONS
+          </div>
         </div>
       </header>
 

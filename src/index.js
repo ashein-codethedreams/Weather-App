@@ -15,3 +15,13 @@ root.render(
 // to log results (for example: reportWebVitals(console.log))
 // or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals();
+
+if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register(`${process.env.PUBLIC_URL}/service-worker.js`)
+      .catch((error) => {
+        console.error('Skyward could not register its service worker:', error);
+      });
+  });
+}

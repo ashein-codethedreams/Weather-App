@@ -8,6 +8,10 @@ outdoor guidance, quick city picks, and recent searches for the current session.
 Weather, air quality, and place search are provided by Open-Meteo and do not
 require an API key.
 
+Skyward can be installed from supported browsers and caches its app shell and
+recent weather lookups for quicker repeat visits and offline access. On iPhone
+or iPad, use Share → Add to Home Screen in Safari.
+
 ## Run locally
 
 1. Install dependencies and start the app:
